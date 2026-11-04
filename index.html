@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#142f38">
+  <meta name="description" content="Explore real smartphone activity recognition with compact trained models, private browser inference, and measured robustness experiments.">
+  <title>MotionLab · Activity recognition</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%2380d8b4'/%3E%3Cpath d='M10 34c10-30 15 30 25 0s15 0 19-4' fill='none' stroke='%23142f38' stroke-width='5'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="styles.css">
+  <script src="vendor/plotly.min.js" defer></script>
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <aside class="sidebar">
+    <a class="brand" href="./"><span class="brand-mark">∿</span> MotionLab</a>
+    <p class="brand-caption">HUMAN ACTIVITY INTELLIGENCE</p>
+    <p class="side-section">WORKSPACE</p>
+    <fieldset class="source-options"><legend>Signal source</legend>
+      <label><input type="radio" name="source" value="replay" checked> Recorded examples</label>
+      <label><input type="radio" name="source" value="upload"> Upload sensor CSV</label>
+    </fieldset>
+    <div class="sidebar-rule"></div>
+    <label class="field-label" for="model">Recognition model</label>
+    <select id="model"><option value="cnn">1D CNN</option><option value="lstm">LSTM</option><option value="cnn_lstm" selected>CNN-LSTM</option><option value="cnn_lstm_aug">CNN-LSTM + augmentation</option></select>
+    <label class="field-label" for="condition">Sensor condition</label>
+    <select id="condition"><option value="clean">Clean</option><option value="noise_0.1">Gaussian noise · 0.1σ</option><option value="noise_0.3">Gaussian noise · 0.3σ</option><option value="noise_0.5">Gaussian noise · 0.5σ</option><option value="rotation_15">Orientation · ±15°</option><option value="rotation_30">Orientation · ±30°</option><option value="missing_10">Missing block · 10%</option></select>
+    <p class="side-help">Change the model or sensor conditions to explore how predictions respond.</p>
+    <div class="side-note"><span class="status-dot"></span> BROWSER INFERENCE<br>50 Hz sampling · 6 sensor channels<br>128 readings per window<br><br>Sensor files stay in your browser.<br>UCI HAR · Research & demonstration</div>
+    <a class="side-download" href="downloads/motionlab-har.zip" download>↓ Download Python research project</a>
+  </aside>
+  <main>
+    <header class="hero"><p class="eyebrow">SENSOR INTELLIGENCE / EXPERIMENT WORKSPACE</p><h1>Every movement has a signature.</h1><p class="subtitle">Explore lightweight activity recognition, from raw sensor windows to real predictions.</p>
+      <div class="pills"><span>● &nbsp; Six activities</span><span>Accelerometer + gyroscope</span><span>Participant-independent evaluation</span></div>
+    </header>
+    <nav class="tabs" aria-label="Workspace"><button class="active" data-tab="monitor" aria-selected="true">Activity monitor</button><button data-tab="comparison" aria-selected="false">Model comparison</button><button data-tab="robustness" aria-selected="false">Robustness lab</button><button data-tab="notes" aria-selected="false">Experiment notes</button></nav>
+    <div id="status" class="notice" role="status" aria-live="polite">Loading real sensor examples and trained recognition models…</div>
+    <section id="monitor" class="panel">
+      <div id="replay-controls" class="replay-controls">
+        <label>Recorded activity<select id="activity"><option value="0">Walking</option><option value="1">Upstairs</option><option value="2">Downstairs</option><option value="3">Sitting</option><option value="4">Standing</option><option value="5">Lying down</option></select></label>
+        <label>Example within this activity <span id="example-number">1 / 12</span><input id="example" type="range" min="1" max="12" value="1"></label>
+        <label class="cycle"><input id="cycle" type="checkbox"> Cycle recorded examples</label>
+      </div>
+      <div id="upload-controls" hidden>
+        <h2>Bring your own signal</h2><p>Upload at least 128 readings sampled at <strong>50 Hz</strong>. Accelerometer values must include gravity and use <strong>g</strong>; gyroscope values must use <strong>rad/s</strong>.</p>
+        <code class="schema">timestamp_s,acc_x,acc_y,acc_z,gyro_x,gyro_y,gyro_z</code>
+        <a class="button small" href="downloads/walking_window.csv" download>↓ Download example CSV</a>
+        <label class="dropzone">Choose a sensor CSV<input id="sensor-file" type="file" accept=".csv,text/csv"><span>Up to 20 MB · 100,000 readings · timestamps optional</span></label>
+        <label class="units"><input id="units" type="checkbox"> My readings use 50 Hz, accelerometer g (with gravity), and gyroscope rad/s.</label>
+        <label id="upload-window-control" hidden>Window number <input id="upload-window" type="number" min="1" value="1"></label>
+      </div>
+      <p id="source-description" class="muted">Independent held-out UCI examples. Cycling is a recorded-data demonstration.</p>
+      <div id="prediction-content">
+        <div class="metrics"><div class="metric"><span>RECOGNIZED ACTIVITY</span><strong id="predicted">—</strong></div><div class="metric"><span>MODEL SCORE</span><strong id="score">—</strong></div><div class="metric"><span>SENSOR WINDOW</span><strong>2.56 s</strong></div><div class="metric"><span>PREDICTION TIME</span><strong id="latency">—</strong></div></div>
+        <p id="record-description" class="muted" aria-live="polite"></p>
+        <div class="monitor-grid"><article class="card"><h2>The motion signal</h2><p class="muted">Two sensors. Three axes each. One movement signature.</p><div id="signal-chart" class="chart"></div></article><article class="card"><h2>Activity scores</h2><p class="muted">Uncalibrated softmax scores across six classes.</p><div id="score-chart" class="chart"></div></article></div>
+        <p class="muted small-text">Prediction time measures scaling and model execution after warmup in this browser. Saved benchmark timings were measured separately on the training computer.</p>
+        <button id="export-predictions" class="button">↓ Classify and download predictions</button><span id="export-progress" class="muted"></span>
+      </div>
+    </section>
+    <section id="comparison" class="panel" hidden>
+      <h2 class="section-title">Seven approaches. One held-out test.</h2><p>Models were selected using validation participants. The original test participants were reserved for final evaluation.</p>
+      <div class="table-scroll"><table id="comparison-table"></table></div>
+      <p class="muted small-text">Classical models use 561 UCI-supplied features; deep models use six sensor channels. Forward timing excludes preprocessing and feature extraction. Sizes exclude the runtime. These measurements use a desktop CPU, not a phone.</p>
+      <div class="two-columns"><article class="card"><h2>Accuracy meets footprint</h2><div id="footprint-chart" class="chart"></div></article><article class="card"><h2>Where predictions get confused</h2><label for="confusion-model">Confusion matrix model</label><select id="confusion-model"></select><div id="confusion-chart" class="chart"></div></article></div>
+      <details><summary>Precision, recall and F1 by activity</summary><div class="table-scroll"><table id="per-class-table"></table></div></details>
+      <a class="button" href="downloads/comparison.csv" download>↓ Download model comparison</a>
+    </section>
+    <section id="robustness" class="panel" hidden>
+      <h2 class="section-title">How well does the signal hold up?</h2><p>The same held-out windows face the same seeded perturbations for every deep model. Each condition is evaluated separately.</p>
+      <label for="robust-metric">Comparison metric</label><select id="robust-metric"><option value="f1_macro">Macro F1</option><option value="accuracy">Accuracy</option></select>
+      <div id="robust-chart" class="wide-chart"></div><div id="robust-cards" class="metrics three"></div>
+      <p class="muted">Cards show augmented CNN-LSTM results and the difference from the unaugmented CNN-LSTM.</p>
+      <details open><summary>What the perturbations mean</summary><p><strong>Gaussian noise:</strong> independent noise with standard deviation 0.1, 0.3 or 0.5 times the clean training channel standard deviation.</p><p><strong>Orientation:</strong> one random rigid 3D rotation per window, shared by accelerometer and gyroscope, with angle sampled within ±15° or ±30°.</p><p><strong>Missing block:</strong> 13 consecutive readings (10.16%) filled with clean training channel means.</p><p><strong>Training augmentation:</strong> half the fit windows receive a rotation within ±20° and noise between 0.02σ and 0.30σ; a quarter of those also receive a missing block. Validation stays clean.</p></details>
+      <div class="notice">These experiments perturb UCI's already preprocessed windows. They do not establish accuracy on a different phone, placement, irregular sampling or live sensor stream.</div>
+      <a class="button" href="downloads/robustness.csv" download>↓ Download robustness results</a>
+    </section>
+    <section id="notes" class="panel" hidden>
+      <h2 class="section-title">A reproducible experiment, with visible boundaries.</h2><div id="split-cards" class="metrics three"></div>
+      <h2>The protocol</h2><p>The original UCI participant split is preserved. Five of the 21 official training participants form a validation set; the other 16 fit the models and scalers. Every participant belongs to exactly one set, so overlapping windows from a person stay together.</p>
+      <p>Classical baselines compare two predefined parameter settings each. Neural networks use clean validation macro F1 for checkpoint selection, learning-rate adjustment and early stopping. Every model is selected before test predictions are computed.</p>
+      <p>The clean and augmented CNN-LSTM share their architecture, initialization seed and optimizer settings. This is a single-seed comparison; repeated seeds and participant folds are needed for stronger conclusions.</p>
+      <h2>Training curves</h2><div id="training-chart" class="wide-chart"></div>
+      <h2>Running on the web</h2><p>The four trained deep models are exported to ONNX with their original normalization included. Predictions run locally in a browser worker using WebAssembly. Uploaded sensor values are not sent to a prediction service. Browser preview corruptions are illustrative; the aggregate benchmark curves use the saved full test experiment.</p>
+      <p>The online app supports recorded examples and CSV inference. The downloadable Python project contains the training workflow, classical estimators and original Streamlit dashboard. Live phone capture, calibrated confidence and mobile hardware benchmarks remain extensions.</p>
+      <details><summary>Configuration, participants, hardware and export checks</summary><pre id="experiment-config"></pre></details>
+      <p class="attribution">Dataset: Reyes-Ortiz et al. (2013). <a href="https://archive.ics.uci.edu/dataset/240/human+activity+recognition+using+smartphones" target="_blank" rel="noopener">UCI Human Activity Recognition Using Smartphones</a>. DOI: 10.24432/C54S4K. CC BY 4.0. <a href="vendor/ONNXRUNTIME-LICENSE.txt">ONNX Runtime license</a>.</p>
+      <div class="downloads"><a class="button" href="downloads/experiment.json" download>↓ Full experiment JSON</a><a class="button" href="downloads/report.html" download>↓ Standalone report</a><a class="button" href="downloads/motionlab-har.zip" download>↓ Python research project</a></div>
+    </section>
+    <footer>MOTIONLAB &nbsp; / &nbsp; RECOGNIZE · COMPARE · UNDERSTAND</footer>
+  </main>
+  <noscript>This application needs JavaScript and WebAssembly to run the trained models. The downloadable report remains available at downloads/report.html.</noscript>
+</body></html>
+

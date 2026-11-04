@@ -1,0 +1,1 @@
+Replay data and example CSV derived from: Reyes-Ortiz et al. (2013), Human Activity Recognition Using Smartphones. UCI Machine Learning Repository. DOI: 10.24432/C54S4K. CC BY 4.0. https://archive.ics.uci.edu/dataset/240/human+activity+recognition+using+smartphones
